@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+	<sub-flow name="xml-converter-main-sub-flow" doc:id="29039d81-de2f-4ca4-8c2b-c70960749fe9">
+		<logger level="INFO" doc:name="Started flow" doc:id="a0597387-2d80-42c5-986f-037638401094" message="Started xml converter flow"/>
+		<set-variable value="#[attributes.uriParams.'id']" doc:name="id" doc:id="3e49be05-3cd1-4c84-9e18-e97961077568" variableName="id"/>
+		<try doc:name="Try" doc:id="255c2518-dc1f-4f3b-ae19-a34d63baea69" >
+			<http:request method="GET" doc:name="Request to call static API" doc:id="66e43db3-79d1-4f13-adf4-f9ff5ef128d4" config-ref="HTTP_Request_configuration-static_API" url="https://raw.githubusercontent.com/MiddlewareNewZealand/evaluation-instructions/main/xml-api/{id}.xml">
+				<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.id
+}]]]></http:uri-params>
+				<http:response-validator >
+					<http:success-status-code-validator values="#[200]" />
+				</http:response-validator>
+			</http:request>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="9284fac7-9d17-482c-acdb-f84c80907b35">
+					<ee:transform doc:name="Error Message" doc:id="c40054e8-5404-4ff3-910b-c2816a1cddce" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"error":error.errorType.identifier,
+	"error_description":error.description
+}]]></ee:set-payload>
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="httpStatus" ><![CDATA[404]]></ee:set-variable>
+						</ee:variables>
+					
+</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<set-payload value='#[%dw 2.0&#10;output application/java&#10;---&#10;read(payload as String,"application/xml")]' doc:name="set payload content type" doc:id="0e7940cd-6b48-431f-b897-3bebfdef1e2c" />
+		<ee:transform doc:name="Transform Message" doc:id="c976d5e3-ca94-4f7e-a2dc-65be22204dca" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	id: payload.Data.id as Number,
+	name: payload.Data.name as String,
+	description: payload.Data.description as String
+} as Object 
+{encoding: "UTF-8", mediaType: "application/json"} ]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Finished Flow" doc:id="9be19c42-0c3e-4b24-97d1-e7f554eb529b" message="Finished xml converter flow"/>
+	
+</sub-flow>
+
+</mule>
